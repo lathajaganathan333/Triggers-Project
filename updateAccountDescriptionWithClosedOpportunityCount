@@ -1,0 +1,31 @@
+public class OpportunityHandler{
+public static void oppAfterUpdateHandler2(List<Opportunity> oppList){
+        /*add acc id to set where it is closed
+         * loop through the account id
+         * count the aggregate result of the opp closed for the accId
+         * update  the description field in the acc with the aggregate result*/
+        Set<Id> accIds = new Set<Id>();
+        for(Opportunity o:oppList){
+        if(o.stageName=='Closed Won'){
+            accIds.add(o.AccountId);
+        }
+        }
+        List<AggregateResult> totalOpp=[select count(Id) totalWon,accountId from opportunity
+                                       where accountId in :accIds
+                                       and stageName='Closed Won'
+                                       group by accountId];
+        List<Account> accList = new List<Account>();
+        for(AggregateResult ar :totalOpp){
+            Account acc = new Account(Id=String.valueof(ar.get('accountId')),description=String.valueof(ar.get('totalWon')));
+            accList.add(acc);
+        }
+        update accList;
+    }
+}
+
+trigger opTrig on Opportunity (after update) {
+if(Trigger.isAfter && Trigger.isUpdate){
+        
+        OpportunityHandler.oppAfterUpdateHandler2(Trigger.new);
+    }
+}
