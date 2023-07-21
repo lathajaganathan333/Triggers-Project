@@ -1,0 +1,18 @@
+trigger accTrigger on Account (before update) {
+    /*add Trigger.oldmap with industry "Agriculture"
+     * and type "Prospect" with Trigger.new ownership at "private"
+     * run a for loop for those account id and raise addError()*/
+  AccountHandler.accountBeforeUpdateHandler(Trigger.new,Trigger.oldmap);  
+    
+}
+
+public class AccountHandler {
+    public static void accountBeforeUpdateHandler(List<Account> newRecords, Map<Id,Account> oldRecords){
+         for(Account acc :newRecords){
+            if((oldRecords.get(acc.Id).Industry=='Agriculture' || oldRecords.get(acc.Id).Type=='Prospect')&&
+               acc.ownership=='Private'){
+                   acc.ownership.addError('You cannot set ownership at Private if previous values for Industry is agriculture and type is Apparel');
+               }
+        }
+    }
+}
