@@ -1,0 +1,38 @@
+public class AccountHandler {
+public static void accountAfterUpdateHandler(List<Account> newAccRecords,Map<Id,Account> accOldMap){
+         /*create a map to hold accountId and website
+         * if website is changed ,add to the map
+         * create a list of contact for the accountId to update
+         * run a for loop and update the website in contact with the map
+         * add the updated contacts to a list
+         * update the contact list outside for loop*/
+        Map<Id,String> accWebSiteMap = new Map<Id,String>();
+        
+        for(Account acc: newAccRecords){
+            if(accOldMap.get(acc.Id).website != acc.website){
+                accWebSiteMap.put(acc.Id,acc.Website);
+            }
+            if(accWebSiteMap.keyset().size()>0){
+                List<Contact> contactsToUpdate = new List<Contact>();
+                List<Contact> conRecords=[select Id,AccountId,website__c from contact
+                                         where accountId in :accWebSiteMap.keyset()];
+                for(Contact con:conRecords){
+                    con.website__c=accWebSiteMap.get(con.AccountId);
+                    contactsToUpdate.add(con);
+                }
+                if(contactsToUpdate.size()>0){
+                    update contactsToUpdate;
+                }
+            }
+        }
+    }
+
+trigger accTrigger on Account (before update,after update) {
+if(Trigger.isAfter && Trigger.isUpdate){
+       AccountHandler.accountAfterUpdateHandler(Trigger.new,Trigger.oldmap);
+    }
+
+}
+
+
+}
