@@ -1,0 +1,17 @@
+trigger conTrigger on Contact (before insert,before update,before delete,after insert,after update,after delete,after undelete) {
+    
+    if(Trigger.isInsert && Trigger.isBefore){
+        contactTriggerHandler.beforeInsertHandler(Trigger.new);
+    }
+}
+
+public class contactTriggerHandler {
+public static void beforeInsertHandler(List<Contact> newRecords){
+        for(Contact con:newRecords) {
+            if (String.isBlank(con.AccountId)){
+               con.AccountId.addError('You must enter Account Name');
+            }
+        }
+    }  
+
+}
