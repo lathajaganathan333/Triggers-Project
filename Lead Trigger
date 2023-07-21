@@ -1,0 +1,40 @@
+trigger leadTrigger on lead(before update,after insert){
+    
+    if(Trigger.isUpdate && Trigger.isBefore){
+        for(Lead leadsToUpdate:Trigger.new){
+            leadsToUpdate.status='Working - Contacted';
+            if(leadsToUpdate.Industry=='HealthCare'){
+                leadsToUpdate.leadSource='Purchased List';
+                leadsToUpdate.SICCode__c='1100';
+                leadsToUpdate.Primary__c='Yes';    
+                
+            }
+        }
+        
+        
+    }    
+    if(Trigger.isInsert && Trigger.isAfter){
+       LeadTriggerHandler.leadAfterInsertHandler(Trigger.new);
+    } 
+    
+}
+
+public class LeadTriggerHandler {
+    public static void leadAfterInsertHandler(List<Lead> newLeadRecords){
+        /*create task list to hold new tasks
+         * loop through new records and add to the task list
+         * update the tasklist outside the for loop */
+        List<Task> taskList= new List<Task>();
+        for(Lead newLeads: newLeadRecords){
+            Task t= new Task(Subject='Followup on new lead '+newLeads.Company,
+                             Priority='Normal',
+                             ownerId=newLeads.ownerId,
+                             Status='Not Started',
+                             WhoId=newLeads.Id);
+            taskList.add(t);
+        }
+        if(!taskList.isEmpty()){
+        insert taskList;  
+        }
+    }
+}
