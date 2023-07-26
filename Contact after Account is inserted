@@ -1,0 +1,77 @@
+trigger accTrigger on Account (before update,after update,after insert) {
+    /*add Trigger.oldmap with industry "Agriculture"
+* and type "Prospect" with Trigger.new ownership at "private"
+* run a for loop for those account id and raise addError()*/
+    if(Trigger.isBefore && Trigger.isUpdate){
+        AccountHandler.accountBeforeUpdateHandler(Trigger.new,Trigger.oldmap); 
+    }
+    
+    if(Trigger.isAfter && Trigger.isUpdate){
+       AccountHandler.accountAfterUpdateHandler(Trigger.new,Trigger.oldmap);
+    }
+    
+    if(Trigger.isAfter && Trigger.isInsert){
+       AccountHandler.accountAfterInsertHandler(Trigger.new); 
+}
+}
+
+Handler
+public class AccountHandler {
+    public static void accountBeforeUpdateHandler(List<Account> newRecords, Map<Id,Account> oldRecords){
+        for(Account acc :newRecords){
+            if((oldRecords.get(acc.Id).Industry=='Agriculture' || oldRecords.get(acc.Id).Type=='Prospect')&&
+               acc.ownership=='Private'){
+                   acc.ownership.addError('You cannot set ownership at Private if previous values for Industry is agriculture and type is Apparel');
+               }
+        }
+    }
+    public static void accountAfterUpdateHandler(List<Account> newAccRecords,Map<Id,Account> accOldMap){
+        /*create a map to hold accountId and website
+* if website is changed ,add to the map
+* create a list of contact for the accountId to update
+* run a for loop and update the website in contact with the map
+* add the updated contacts to a list
+* update the contact list outside for loop*/
+        Map<Id,String> accWebSiteMap = new Map<Id,String>();
+        
+        for(Account acc: newAccRecords){
+            if(accOldMap.get(acc.Id).website != acc.website){
+                accWebSiteMap.put(acc.Id,acc.Website);
+            }
+            if(accWebSiteMap.keyset().size()>0){
+                List<Contact> contactsToUpdate = new List<Contact>();
+                List<Contact> conRecords=[select Id,AccountId,website__c from contact
+                                          where accountId in :accWebSiteMap.keyset()];
+                for(Contact con:conRecords){
+                    con.website__c=accWebSiteMap.get(con.AccountId);
+                    contactsToUpdate.add(con);
+                }
+                if(contactsToUpdate.size()>0){
+                    update contactsToUpdate;
+                }
+            }
+        }
+    }
+    public static void accountAfterInsertHandler(List<Account> accList){
+        /*if n contact records is not null
+* create the contact
+* add to contact list 
+* insert the new contacts list outside the FOR LOOP*/
+        List<Contact> conList= new List<Contact>();
+        for(Account acc : accList){
+            
+            if(acc.create_n_Contact_Records__c!=null && acc.create_n_Contact_Records__c>0){
+                for(Decimal i=0;i<acc.create_n_Contact_Records__c;i++){
+                    Contact c= new Contact(lastName=acc.name+i,accountId=acc.Id);
+                    conList.add(c);
+                }
+                
+            }
+            
+        }
+        if(!conList.isEmpty()) {
+            insert conList;
+        }   
+    }
+    
+}
