@@ -1,0 +1,104 @@
+Handler
+public class contactTriggerHandler {
+    public static void afterInsertHandler(List<Contact> contactList){
+        //create a set to  hold unique
+            //account ids
+            set<Id> accountIds = new Set<Id>();
+            
+            //add account id to the set
+            for(Contact con :contactList){
+                if(String.isNotBlank(con.AccountId) ){
+                    accountIds.add(con.AccountId);
+                }
+                AccountContactService.updateActiveContacts(accountIds);
+                    
+                    }
+            
+        }
+        
+    
+
+    public static void afterUpdateHandler(List<Contact> newContacts,Map<Id,Contact> oldContactsMap){
+        //create a set to  hold unique
+            //account ids
+            set<Id> accountIds = new Set<Id>();
+            
+            //add account id to the set
+            //only if Active__c is changed
+            //or account is changed
+            for(Contact con :newContacts){
+                if(String.isNotBlank(con.AccountId) && oldContactsMap.get(con.Id).Active__c !=con.Active__c ){
+                    accountIds.add(con.AccountId);
+                }else if(con.accountId != oldContactsMap.get(con.Id).AccountId){
+                    accountIds.add(con.AccountId); 
+                    accountIds.add(oldContactsMap.get(con.Id).AccountId);
+                }
+                AccountContactService.updateActiveContacts(accountIds);
+            }
+
+            
+        }
+    
+    public static void afterDeleteHandler(List<Contact> oldContacts){
+         //create a set to  hold unique
+            //account ids
+            set<Id> accountIds = new Set<Id>();
+            
+            //add account id to the set
+            for(Contact con :oldContacts){
+                if(String.isNotBlank(con.AccountId) ){
+                    accountIds.add(con.AccountId);
+                }
+                AccountContactService.updateActiveContacts(accountIds);
+                    
+                    }
+            
+        
+    }
+    
+    public static void afterUnDeleteHandler(List<Contact> newContacts){
+        
+        //create a set to  hold unique
+            //account ids
+            set<Id> accountIds = new Set<Id>();
+            
+            //add account id to the set
+            for(Contact con :newContacts){
+                if(String.isNotBlank(con.AccountId) ){
+                    accountIds.add(con.AccountId);
+                }
+                AccountContactService.updateActiveContacts(accountIds);
+                    
+                    }
+            
+        
+    }
+    public static void beforeInsertHandler(List<Contact> newRecords){
+        
+                                    
+        for(Contact con:newRecords) {
+            if (String.isBlank(con.AccountId)){
+               con.AccountId.addError('You must enter Account Name');
+            }
+          
+             List<Contact> existingContact= [select Id,lastName,phone,email from contact where
+                                            lastName=:con.lastname and email=:con.email and
+                                            phone=:con.phone];  
+            
+            if(!existingContact.isEmpty()){
+                con.addError('This record exists!!!!');
+            }
+        }
+    }  
+    
+    }
+
+Trigger 
+
+trigger conTrigger on Contact (before insert,before update,before delete,after insert,after update,after delete,after undelete) {
+    
+    if(Trigger.isInsert && Trigger.isBefore){
+        contactTriggerHandler.beforeInsertHandler(Trigger.new);
+       
+    }
+}
