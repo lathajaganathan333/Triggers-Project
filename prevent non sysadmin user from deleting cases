@@ -1,0 +1,33 @@
+public class CaseHandler {
+    public static void caseBeforeDeleteHandler(List<Case> caseList){
+        //current user profile id
+        Id currentUserProfile = UserInfo.getProfileId();
+        Id sysAdminProfileId=[select id from Profile where name='System Administrator'].Id;
+        
+        for(Case caseRecord :caseList){
+             if(currentUserProfile !=sysAdminProfileId){
+       caseRecord.addError('You are not sysadmin . So you cannot delete the record!!');
+        }
+        }
+       
+            
+        
+    }
+}
+
+Trigger
+
+trigger caseTrigger on Case (before insert,before delete) {
+    if(Trigger.isbefore && Trigger.isInsert){
+        for(Case casesToUpdate: Trigger.new){
+            if(casesToUpdate.Origin=='Phone'){
+                casesToUpdate.Priority='High';
+            }else{
+                casesToUpdate.Priority='Low';
+            }
+        }
+    }
+    if(Trigger.isBefore && Trigger.isDelete){
+        CaseHandler.caseBeforeDeleteHandler(Trigger.old);
+    }
+}
