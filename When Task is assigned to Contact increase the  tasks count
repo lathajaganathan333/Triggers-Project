@@ -1,0 +1,52 @@
+public class TaskHandler {
+    public static void tasksAfterInsertHandler(List<Task> newTasks){
+        /*first get the set of id of all contacts
+* check if the tasks inserted whoId is in the 
+* contact set
+* if it is yes  run a aggregateResult to query 
+* count of tasks associated with that contact
+* update the count of tasks in the contact record*/
+        
+        Set<Id> conId = new Set<Id>();
+        for(Task t:newTasks){
+            for(task ta : [SELECT Id, Subject, WhoId, 
+                           TYPEOF Who
+                           WHEN Contact THEN Id
+                           ELSE Name
+                           END
+                           FROM Task
+                           WHERE Who.Type = 'Contact'
+                           and task.id=:t.Id ]){                             
+                           conId.add(ta.whoId);                               
+                           }
+        }
+      List<AggregateResult> aggResult=[select count(Id) totalcontacts,whoId
+                                      from Task where whoId in :conId 
+                                       group by whoId];
+        
+List<Contact>  conList = new List<Contact>();
+        for(AggregateResult ar:aggResult){
+            Contact c = new Contact(Id=String.valueof(ar.get('whoId')),
+                                   Number_of_Tasks__c=Integer.valueof(ar.get('totalcontacts')));
+            conList.add(c);
+        } 
+        update conList;
+    }
+    
+}
+
+Trigger
+
+trigger taskTrigger on Task (before insert,before update,after insert) {
+    
+    if(Trigger.isInsert && Trigger.isBefore){ 
+        for(Task tasksToUpdate:Trigger.new){
+        
+            tasksToUpdate.Priority='High';
+        }
+    }
+    if(Trigger.isInsert && Trigger.isAfter){
+       taskHandler.tasksAfterInsertHandler(Trigger.new);
+    }
+    
+    }
