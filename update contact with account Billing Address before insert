@@ -1,0 +1,198 @@
+public class contactTriggerHandler {
+    public static void afterInsertHandler(List<Contact> contactList){
+        //create a set to  hold unique
+            //account ids
+            set<Id> accountIds = new Set<Id>();
+            
+            //add account id to the set
+            for(Contact con :contactList){
+                if(String.isNotBlank(con.AccountId) ){
+                    accountIds.add(con.AccountId);
+                }
+                AccountContactService.updateActiveContacts(accountIds);
+                    
+                    }
+        
+        }
+        
+    
+
+    public static void afterUpdateHandler(List<Contact> newContacts,Map<Id,Contact> oldContactsMap){
+        //create a set to  hold unique
+            //account ids
+            set<Id> accountIds = new Set<Id>();
+            
+            //add account id to the set
+            //only if Active__c is changed
+            //or account is changed
+            for(Contact con :newContacts){
+                if(String.isNotBlank(con.AccountId) && oldContactsMap.get(con.Id).Active__c !=con.Active__c ){
+                    accountIds.add(con.AccountId);
+                }else if(con.accountId != oldContactsMap.get(con.Id).AccountId){
+                    accountIds.add(con.AccountId); 
+                    accountIds.add(oldContactsMap.get(con.Id).AccountId);
+                }
+                AccountContactService.updateActiveContacts(accountIds);
+            }
+
+            
+        }
+    
+    public static void afterDeleteHandler(List<Contact> oldContacts){
+         //create a set to  hold unique
+            //account ids
+            set<Id> accountIds = new Set<Id>();
+            
+            //add account id to the set
+            for(Contact con :oldContacts){
+                if(String.isNotBlank(con.AccountId) ){
+                    accountIds.add(con.AccountId);
+                }
+                AccountContactService.updateActiveContacts(accountIds);
+                    
+                    }
+            
+        
+    }
+    
+    public static void afterUnDeleteHandler(List<Contact> newContacts){
+        
+        //create a set to  hold unique
+            //account ids
+            set<Id> accountIds = new Set<Id>();
+            
+            //add account id to the set
+            for(Contact con :newContacts){
+                if(String.isNotBlank(con.AccountId) ){
+                    accountIds.add(con.AccountId);
+                }
+                AccountContactService.updateActiveContacts(accountIds);
+                    
+                    }
+            
+        
+    }
+    public static void beforeInsertHandler(List<Contact> newRecords){
+        
+                                    
+        for(Contact con:newRecords) {
+            if (String.isBlank(con.AccountId)){
+               con.AccountId.addError('You must enter Account Name');
+            }
+          
+             List<Contact> existingContact= [select Id,lastName,phone,email from contact where
+                                            lastName=:con.lastname and email=:con.email and
+                                            phone=:con.phone];  
+            
+            if(!existingContact.isEmpty()){
+                con.addError('This record exists!!!!');
+            }
+        }
+    }  
+    /*public static void afterInsertHandlerSharePublicGroup(List<Contact> newContacts){
+        Id conGroupId= [Select Id from group where name='Contact  group' LIMIT 1].Id;
+       List< contactShare> conShareList = new List<contactShare>();
+        for(Contact conRecord:newContacts){
+             contactShare conShare = new contactShare();
+            //conShare.ContactId=conRecord.Id;
+            conShare.UserOrGroupId=conGroupId;
+            conShare.RowCause='Manual';
+            conShare.ContactAccessLevel='Edit';
+            conShareList.add(conShare);
+            
+            
+        }
+        if(!conShareList.isEmpty()){
+             insert conShareList;
+        }
+       
+       
+        
+    }*/
+    public static void afterConUpdateHandler(List<Contact> newRecords,Map<Id,Contact> oldMapRecords){
+          /*check if the contact has account and if phone or email is changed
+           * if yes add the account id to a set
+           * add the email id of the account owner to a list of string
+           * loop over the email id and use singleMessage for emailing 
+           * the account owner*/
+        Set<Id> accIds = new Set<Id>();
+        List<String> emailAddressList = new List<String>();
+        for(Contact con : newRecords){
+            if(con.AccountId!=null && (con.Email !=oldMapRecords.get(con.Id).Email ||
+                                      con.Phone!=oldMapRecords.get(con.Id).Phone)){
+                accIds.add(con.AccountId);
+            }
+        }
+        
+              List<Account> accEmails =
+                  [select ownerId,owner.Email from account where Id in :accIds];
+        
+       
+        for(Account a:accEmails){
+            emailAddressList.add(a.owner.Email);
+        }
+        if(!emailAddressList.isEmpty()){
+            //send the email for the account owner
+            Messaging.SingleEmailMessage message = new Messaging.SingleEmailMessage();
+// Set recipients to two contact IDs.
+// Replace IDs with valid record IDs in your org.
+message.toAddresses = emailAddressList;
+message.optOutPolicy = 'FILTER';
+message.subject = 'Phone or Email is changed';
+message.plainTextBody = 'Hi The Phone or Email of your account is changed';
+Messaging.SingleEmailMessage[] messages = 
+    new List<Messaging.SingleEmailMessage> {message};
+         Messaging.SendEmailResult[] results = Messaging.sendEmail(messages);
+
+        }
+        }
+    public static void beforeInsertCon(List<Contact> newRecords){
+        /*check if account id is not null 
+         * add the contact  
+         * to a list of Contact 
+         * loop through the list and for each contact id update the 
+         * address fields to be same as account
+         * update outside the FOR loop*/
+        List<Contact> conListToUpdate = new List<Contact>();
+    Map<Contact,Id> accConMap= new Map<Contact,Id>();
+        Map<Id,Account> accMap = new Map<Id,Account>();
+        
+        for(Contact con :newRecords){
+            if(con.AccountId !=null ){
+                conListToUpdate.add(con);
+               accConMap.put(con,con.AccountId);
+                
+            }
+        }
+        
+       Map<Id,Account>acMap=new Map<Id,Account>([select Id,BillingCity,BillingStreet from account 
+                                                  where id in :accConMap.Values()]) ;
+            for(Contact c:conListToUpdate){
+                if(acMap.containsKey(c.AccountId)){
+                    c.MailingCity=acMap.get(c.AccountId).BillingCity;
+                    c.MailingStreet=acMap.get(c.AccountId).BillingStreet;
+                }
+            }
+           
+        }
+         
+    
+    }
+
+Trigger
+trigger conTrigger on Contact (before insert,before update,before delete,after insert,after update,after delete,after undelete) {
+    
+    if(Trigger.isInsert && Trigger.isBefore){
+        contactTriggerHandler.beforeInsertHandler(Trigger.new);
+       contactTriggerHandler.beforeInsertCon(Trigger.new);
+    }
+   /* if(Trigger.isInsert && Trigger.isAfter){
+         contactTriggerHandler.afterInsertHandlerSharePublicGroup(Trigger.new);
+    }*/
+    
+    if(Trigger.isUpdate && Trigger.isAfter){
+        contactTriggerHandler.afterConUpdateHandler(Trigger.new,Trigger.oldMap);
+    }
+    
+    
+}
